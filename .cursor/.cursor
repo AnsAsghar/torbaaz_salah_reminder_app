@@ -1,0 +1,38 @@
+# instructions for new app
+I need you to create an prayer reminder app so first of all I need you to think and plan the app so that you can create it step by step. Technically make the app sound and error free. Make the app smooth and take it step by step don't create everything at once break down steps and make it run correctly.
+
+
+Now that was initial instructions
+Now the apps features are following you can add more if needed
+
+This is basically Islamic prayer reminder app that must be build according to Salah (Prayer) in Islamic concept 
+
+Now there are few things you need to know
+first Prayer time(Adhan-call to prayer) which is when it's time to pray for an Muslim(user here) and second there is congregation (which muslims go and pray at mosque) which answers the call to prayer(Adhan)
+it's an prayer reminding app
+1. It should show Salah prayer time and get an api from internet (like Google) for example if we google prayer times then if user enters an location then api should give prayer times accordinng to location entered by user
+we can also use user's location
+Also there should be an option for user to edit those prayer times if app does not show correct prayer's time
+
+2. Another core feature is that User must be reminder 10 minutes before the prayer time and message should be shown that prayer time has began.
+
+3. Now there is also an feature that the user must be reminded for Prayer Congregation time before actual time. Now this Congregation time is different from salah prayer time so there must be different reminders for both of these times.
+But the app does not fix any congregation time it should be set by user and changeable.
+
+4. The interface must be cool, modern and Islamic
+5. There should be option for dark mode
+6. There should be proper notification sound and user must be reminded for congregation and there must be an check list for all 5 prayers
+Fajar , Duhr, Asar, Maghrib and Isha'a 
+
+also user can also be given option to pray Tahujid prayer which is prayed at home in last third of night as an nafal(extra) worship(ibadah)
+
+The interface must be simple but minimilistic and cool
+
+here is the api for Adhan (prayer time)
+@https://api.aladhan.com/timingsByAddress/09-03-2015?address=Dubai,UAE&method=8 
+
+See further details as follows
+
+@https://aladhan.com/calculation-methods 
+
+@Web  search the web for guide on how we can make this app more effective and implement an prayer reminding app
