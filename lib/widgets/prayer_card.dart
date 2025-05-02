@@ -7,6 +7,7 @@ class PrayerCard extends StatelessWidget {
   final DateTime congregationTime;
   final bool isActive;
   final bool isPast;
+  final bool isNextDay;
   final VoidCallback? onCongregationTimeEdit;
 
   const PrayerCard({
@@ -16,6 +17,7 @@ class PrayerCard extends StatelessWidget {
     required this.congregationTime,
     required this.isActive,
     required this.isPast,
+    this.isNextDay = false,
     this.onCongregationTimeEdit,
   });
 
@@ -92,26 +94,52 @@ class PrayerCard extends StatelessWidget {
                                         isActive ? FontWeight.bold : null,
                                   ),
                             ),
-                            if (isActive)
-                              Container(
-                                margin: const EdgeInsets.only(top: 4),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 8,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Theme.of(context).colorScheme.primary,
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: const Text(
-                                  'NEXT',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
+                            Row(
+                              children: [
+                                if (isActive)
+                                  Container(
+                                    margin:
+                                        const EdgeInsets.only(top: 4, right: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'NEXT',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
                                   ),
-                                ),
-                              ),
+                                if (isNextDay)
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 4),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Text(
+                                      'TOMORROW',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
                           ],
                         ),
                       ],

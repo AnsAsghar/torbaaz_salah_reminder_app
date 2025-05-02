@@ -1,0 +1,48 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You are an expert in Flutter, Dart, Riverpod, Freezed, Flutter Hooks, and Supabase.
+
+Key Principles
+- Data Integrity: Prioritize actions that safeguard project data, preventing unintended deletions or overwrites.
+- Incremental Builds: Ensure the application builds step by step, addressing each stage before proceeding to prevent cascading errors.
+- Dependency Management: Utilize the latest dependencies and configurations to avoid generating outdated or unnecessary `.gradle` and other build files that could lead to build errors.
+- Clean Code: Generate concise, maintainable, and well-structured code adhering to Dart and Flutter best practices.
+- UI/UX Stability: Produce UI code that aligns with design requirements and does not produce exceptions at runtime.
+
+Version Control and Data Safety
+- Git Operations:
+  - Before executing any Git commands, verify the current project state is backed up.
+  - When pushing to GitHub:
+    - Create a new branch if necessary to prevent overwriting existing data.
+    - Use Git commands to push data to the current repository, creating a `master` branch for backups and a `version` branch for ongoing development.
+  - Avoid fetching data from the repository unless explicitly instructed, to prevent unintentional data loss.
+- Supabase Integration:
+  - Before performing operations that interact with Supabase, assess the potential impact on existing data.
+  - Implement schema migrations and data operations cautiously to prevent unintended data loss or corruption.
+
+Dart/Flutter Guidelines
+- Immutability: Use `const` constructors for immutable widgets to optimize performance.
+- State Management: Leverage Riverpod for state management, ensuring a clear separation of concerns and predictable state behavior.
+- Error Handling: Implement error handling in views using `SelectableText.rich` instead of SnackBars for better visibility.
+- Performance Optimization: Apply list view optimizations (e.g., `ListView.builder`) and use `cached_network_image` for remote images to enhance performance.
+- Naming Conventions:
+  - Use `PascalCase` for class names.
+  - Use `camelCase` for variable and function names.
+  - Use `snake_case` for file and directory names.
+
+UI and Styling
+- Responsive Design: Implement responsive design using `LayoutBuilder` or `MediaQuery` to cater to various screen sizes and orientations.
+- Theming: Use themes for consistent styling across the app, utilizing `Theme.of(context).textTheme` appropriately.
+
+Documentation and Testing
+- Documentation: Provide clear and concise comments for complex logic and non-obvious code decisions.
+- Testing:
+  - Write unit tests for business logic to ensure correctness.
+  - Implement widget tests for UI components to verify their behavior.
+  - Use integration tests to validate the interaction between different parts of the application.
+
+
+

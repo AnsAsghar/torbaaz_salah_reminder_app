@@ -1,27 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/prayer_time.dart';
-import '../models/mosque_settings.dart';
 import '../services/prayer_api_service.dart';
 import '../widgets/prayer_card.dart';
 import '../widgets/islamic_background.dart';
 import '../providers/theme_provider.dart';
+import '../providers/location_provider.dart';
+import '../providers/settings_provider.dart';
+import '../providers/notification_provider.dart';
+import '../providers/prayer_notification_provider.dart';
+import '../widgets/location_dialog.dart';
+import 'settings_screen.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends ConsumerState<HomeScreen> {
   final PrayerApiService _apiService = PrayerApiService();
   PrayerTime? _prayerTimes;
-  MosqueSettings _mosqueSettings = MosqueSettings.defaultSettings();
   bool _isLoading = true;
+  bool _isNextDay = false;
   String? _error;
   String? _activePrayer;
-  DateTime? _nextPrayerTime;
 
   @override
   void initState() {
@@ -36,17 +41,78 @@ class _HomeScreenState extends State<HomeScreen> {
         _error = null;
       });
 
+      // Get location data from provider
+      final locationData = ref.read(locationProvider);
+      final city = locationData['city'] as String;
+      final country = locationData['country'] as String;
+      final latitude = locationData['latitude'] as double;
+      final longitude = locationData['longitude'] as double;
+
+      // Try first with the city-based API which is more reliable
+      try {
+        final prayerTimes = await _apiService.getPrayerTimesByCity(
+          city: city,
+          country: country,
+          method: 8, // Using method 8 as specified in your API URL
+        );
+
+        setState(() {
+          _prayerTimes = prayerTimes;
+          _isLoading = false;
+          _isNextDay = false;
+          _updateActivePrayer();
+        });
+
+        // Schedule notifications for prayer times
+        final notificationSettings = ref.read(notificationSettingsProvider);
+        final prayerNotificationService =
+            ref.read(prayerNotificationServiceProvider);
+        final mosqueSettings = ref.read(mosqueSettingsProvider);
+
+        await prayerNotificationService.schedulePrayerNotifications(
+          prayerTimes,
+          enablePrayerNotifications:
+              notificationSettings.enablePrayerNotifications,
+          enableCongregationNotifications:
+              notificationSettings.enableCongregationNotifications,
+          mosqueSettings: mosqueSettings,
+        );
+        return;
+      } catch (cityApiError) {
+        if (kDebugMode) {
+          print('City API failed, falling back to coordinates: $cityApiError');
+        }
+        // If city-based API fails, fall back to coordinates
+      }
+
+      // Fallback to coordinates-based API
       final prayerTimes = await _apiService.getPrayerTimes(
-        latitude: 25.2048,
-        longitude: 55.2708,
+        latitude: latitude,
+        longitude: longitude,
         method: 2,
       );
 
       setState(() {
         _prayerTimes = prayerTimes;
         _isLoading = false;
+        _isNextDay = false;
         _updateActivePrayer();
       });
+
+      // Schedule notifications for prayer times
+      final notificationSettings = ref.read(notificationSettingsProvider);
+      final prayerNotificationService =
+          ref.read(prayerNotificationServiceProvider);
+      final mosqueSettings = ref.read(mosqueSettingsProvider);
+
+      await prayerNotificationService.schedulePrayerNotifications(
+        prayerTimes,
+        enablePrayerNotifications:
+            notificationSettings.enablePrayerNotifications,
+        enableCongregationNotifications:
+            notificationSettings.enableCongregationNotifications,
+        mosqueSettings: mosqueSettings,
+      );
     } catch (e) {
       setState(() {
         _error = e.toString();
@@ -68,27 +134,98 @@ class _HomeScreenState extends State<HomeScreen> {
     };
 
     String? nextPrayer;
-    DateTime? nextTime;
 
     for (var entry in prayers.entries) {
       if (entry.value.isAfter(now)) {
         nextPrayer = entry.key;
-        nextTime = entry.value;
         break;
       }
     }
 
+    // If no next prayer found (all prayers for today are over),
+    // set Fajr as the next prayer and load next day's prayer times
+    if (nextPrayer == null) {
+      nextPrayer = 'Fajr';
+      _loadNextDayPrayerTimes();
+    }
+
     setState(() {
       _activePrayer = nextPrayer;
-      _nextPrayerTime = nextTime;
     });
   }
 
+  // Load next day's prayer times
+  Future<void> _loadNextDayPrayerTimes() async {
+    try {
+      // Get tomorrow's date
+      final tomorrow = DateTime.now().add(const Duration(days: 1));
+
+      // Get location data from provider
+      final locationData = ref.read(locationProvider);
+      final city = locationData['city'] as String;
+      final country = locationData['country'] as String;
+
+      if (kDebugMode) {
+        print(
+            'Loading next day\'s prayer times for ${tomorrow.day}-${tomorrow.month}-${tomorrow.year}');
+      }
+
+      // Try first with the city-based API which is more reliable
+      try {
+        final prayerTimes = await _apiService.getPrayerTimesByCity(
+          city: city,
+          country: country,
+          method: 8, // Using method 8 as specified in your API URL
+          date: tomorrow,
+        );
+
+        setState(() {
+          _prayerTimes = prayerTimes;
+          _isLoading = false;
+          _isNextDay = true;
+        });
+        return;
+      } catch (cityApiError) {
+        if (kDebugMode) {
+          print(
+              'City API failed for next day, falling back to coordinates: $cityApiError');
+        }
+        // If city-based API fails, fall back to coordinates
+      }
+
+      // Fallback to coordinates-based API
+      final latitude = locationData['latitude'] as double;
+      final longitude = locationData['longitude'] as double;
+
+      final prayerTimes = await _apiService.getPrayerTimes(
+        latitude: latitude,
+        longitude: longitude,
+        method: 2,
+        date: tomorrow,
+      );
+
+      setState(() {
+        _prayerTimes = prayerTimes;
+        _isLoading = false;
+        _isNextDay = true;
+      });
+    } catch (e) {
+      if (kDebugMode) {
+        print('Error loading next day\'s prayer times: $e');
+      }
+      // Don't update state or show error for next day loading failures
+      // as we still want to show today's prayer times
+    }
+  }
+
   Future<void> _editCongregationTime(String prayer, DateTime adhanTime) async {
+    // Get mosque settings from provider
+    final mosqueSettings = ref.read(mosqueSettingsProvider);
+
     final TimeOfDay? newTime = await showTimePicker(
       context: context,
       initialTime: TimeOfDay.fromDateTime(
-        _mosqueSettings.getCongregationTime(prayer, adhanTime),
+        mosqueSettings.getCongregationTime(prayer, adhanTime),
       ),
     );
 
@@ -103,24 +240,22 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       final offset = newDateTime.difference(adhanTime);
 
-      setState(() {
-        _mosqueSettings = _mosqueSettings.copyWith(
-          congregationOffsets: {
-            ..._mosqueSettings.congregationOffsets,
-            prayer: offset,
-          },
-        );
-      });
+      // Update mosque settings using the provider
+      await ref
+          .read(mosqueSettingsProvider.notifier)
+          .updateCongregationOffset(prayer, offset);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final themeProvider = Provider.of<ThemeProvider>(context);
+    // Use Riverpod to get the theme state and mosque settings
+    final isDarkMode = ref.watch(themeProvider);
+    final mosqueSettings = ref.watch(mosqueSettingsProvider);
 
     return Scaffold(
       body: IslamicBackground(
-        isDarkMode: themeProvider.isDarkMode,
+        isDarkMode: isDarkMode,
         child: SafeArea(
           child: Column(
             children: [
@@ -142,24 +277,44 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         IconButton(
                           icon: Icon(
-                            themeProvider.isDarkMode
-                                ? Icons.light_mode
-                                : Icons.dark_mode,
+                            isDarkMode ? Icons.light_mode : Icons.dark_mode,
                           ),
-                          onPressed: () => themeProvider.toggleTheme(),
+                          onPressed: () {
+                            // Toggle theme using the ThemeNotifier
+                            ref.read(themeProvider.notifier).toggleTheme();
+                          },
                           tooltip: 'Toggle theme',
                         ),
                         IconButton(
                           icon: const Icon(Icons.location_on),
-                          onPressed: () {
-                            // TODO: Implement location selection
+                          onPressed: () async {
+                            final result = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => const LocationDialog(),
+                            );
+
+                            if (result == true) {
+                              // Reload prayer times with new location
+                              _loadPrayerTimes();
+                            }
                           },
+                          tooltip: 'Change location',
                         ),
                         IconButton(
                           icon: const Icon(Icons.settings),
                           onPressed: () {
-                            // TODO: Implement settings
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SettingsScreen(),
+                              ),
+                            ).then((_) {
+                              // Reload prayer times when returning from settings
+                              // in case location was changed
+                              _loadPrayerTimes();
+                            });
                           },
+                          tooltip: 'Settings',
                         ),
                       ],
                     ),
@@ -239,14 +394,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                             color: Theme.of(context)
                                                 .colorScheme
                                                 .primary
-                                                .withOpacity(0.1),
+                                                .withAlpha(25),
                                             borderRadius:
                                                 BorderRadius.circular(12),
                                             border: Border.all(
                                               color: Theme.of(context)
                                                   .colorScheme
                                                   .primary
-                                                  .withOpacity(0.2),
+                                                  .withAlpha(50),
                                             ),
                                           ),
                                           child: Row(
@@ -255,7 +410,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                 Icons.info_outline,
                                                 size: 20,
                                                 color: Theme.of(context)
-                                                    .colorScheme.primary,
+                                                    .colorScheme
+                                                    .primary,
                                               ),
                                               const SizedBox(width: 8),
                                               Expanded(
@@ -266,7 +422,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                                       .bodyMedium
                                                       ?.copyWith(
                                                         color: Theme.of(context)
-                                                            .colorScheme.primary,
+                                                            .colorScheme
+                                                            .primary,
                                                       ),
                                                 ),
                                               ),
@@ -286,13 +443,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         name: 'Fajr',
                                         adhanTime: _prayerTimes!.fajr,
                                         congregationTime:
-                                            _mosqueSettings.getCongregationTime(
+                                            mosqueSettings.getCongregationTime(
                                           'Fajr',
                                           _prayerTimes!.fajr,
                                         ),
                                         isActive: _activePrayer == 'Fajr',
                                         isPast: _prayerTimes!.fajr
                                             .isBefore(DateTime.now()),
+                                        isNextDay: _isNextDay,
                                         onCongregationTimeEdit: () =>
                                             _editCongregationTime(
                                           'Fajr',
@@ -303,13 +461,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         name: 'Dhuhr',
                                         adhanTime: _prayerTimes!.dhuhr,
                                         congregationTime:
-                                            _mosqueSettings.getCongregationTime(
+                                            mosqueSettings.getCongregationTime(
                                           'Dhuhr',
                                           _prayerTimes!.dhuhr,
                                         ),
                                         isActive: _activePrayer == 'Dhuhr',
                                         isPast: _prayerTimes!.dhuhr
                                             .isBefore(DateTime.now()),
+                                        isNextDay: _isNextDay,
                                         onCongregationTimeEdit: () =>
                                             _editCongregationTime(
                                           'Dhuhr',
@@ -320,13 +479,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         name: 'Asr',
                                         adhanTime: _prayerTimes!.asr,
                                         congregationTime:
-                                            _mosqueSettings.getCongregationTime(
+                                            mosqueSettings.getCongregationTime(
                                           'Asr',
                                           _prayerTimes!.asr,
                                         ),
                                         isActive: _activePrayer == 'Asr',
                                         isPast: _prayerTimes!.asr
                                             .isBefore(DateTime.now()),
+                                        isNextDay: _isNextDay,
                                         onCongregationTimeEdit: () =>
                                             _editCongregationTime(
                                           'Asr',
@@ -337,13 +497,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         name: 'Maghrib',
                                         adhanTime: _prayerTimes!.maghrib,
                                         congregationTime:
-                                            _mosqueSettings.getCongregationTime(
+                                            mosqueSettings.getCongregationTime(
                                           'Maghrib',
                                           _prayerTimes!.maghrib,
                                         ),
                                         isActive: _activePrayer == 'Maghrib',
                                         isPast: _prayerTimes!.maghrib
                                             .isBefore(DateTime.now()),
+                                        isNextDay: _isNextDay,
                                         onCongregationTimeEdit: () =>
                                             _editCongregationTime(
                                           'Maghrib',
@@ -354,13 +515,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                         name: 'Isha',
                                         adhanTime: _prayerTimes!.isha,
                                         congregationTime:
-                                            _mosqueSettings.getCongregationTime(
+                                            mosqueSettings.getCongregationTime(
                                           'Isha',
                                           _prayerTimes!.isha,
                                         ),
                                         isActive: _activePrayer == 'Isha',
                                         isPast: _prayerTimes!.isha
                                             .isBefore(DateTime.now()),
+                                        isNextDay: _isNextDay,
                                         onCongregationTimeEdit: () =>
                                             _editCongregationTime(
                                           'Isha',

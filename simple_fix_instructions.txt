@@ -1,0 +1,35 @@
+SIMPLE FIX FOR FLUTTER_LOCAL_NOTIFICATIONS BUILD ERROR
+
+To fix the "reference to bigLargeIcon is ambiguous" error when building the APK, follow these simple steps:
+
+1. Navigate to the flutter_local_notifications package directory:
+   C:\Users\Pak\AppData\Local\Pub\Cache\hosted\pub.dev\flutter_local_notifications-14.1.5\android\src\main\java\com\dexterous\flutterlocalnotifications
+
+2. Open the file FlutterLocalNotificationsPlugin.java in a text editor
+
+3. Find the line that contains:
+   ```java
+   bigPictureStyle.bigLargeIcon(null);
+   ```
+
+4. Comment out this line by adding // at the beginning:
+   ```java
+   // bigPictureStyle.bigLargeIcon(null);
+   ```
+
+5. Save the file
+
+6. Run `flutter clean` to clean the build
+
+7. Run `flutter build apk --release` to build the APK again
+
+This simple fix removes the problematic code that's causing the ambiguity error, while still allowing notifications to work properly without the large icon in the expanded view.
+
+ALTERNATIVE APPROACH:
+If you prefer to use one of the batch files provided:
+
+1. Run either:
+   - comment_out_line.bat - to comment out just the problematic line
+   - remove_big_picture.bat - to remove the entire if-else block related to bigPictureStyle
+
+2. After running the batch file, follow the instructions to clean and rebuild your app.
